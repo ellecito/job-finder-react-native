@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { StyleSheet, Platform, View, ActivityIndicator, FlatList, Text, Image, Linking, Alert } from 'react-native';
+import { StyleSheet, Platform, View, ActivityIndicator, FlatList, Text, Image, Linking, Alert, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 
 import moment from 'moment';
 import 'moment/locale/es'
@@ -7,13 +7,21 @@ moment.locale('es');
 
 import InAppBrowser from 'react-native-inappbrowser-reborn'
 
+const weburl = 'https://job-finder-express.herokuapp.com/' //
+
 
 export default class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      isLoading: true
+      isLoading: true,
+      refreshing: false
     }
+  }
+
+  _onRefresh = () => {
+    this.setState({ refreshing: true });
+    this.webCall()
   }
 
   async GetItem(url) {
@@ -42,7 +50,7 @@ export default class App extends Component {
           },
           headers: {
             'my-custom-header': 'my custom header value'
-          },
+          }
         })
       }
       else Linking.openURL(url)
@@ -63,12 +71,13 @@ export default class App extends Component {
   }
 
   webCall = () => {
-    return fetch('https://job-finder-express.herokuapp.com/')
+    return fetch(weburl)
       .then((response) => response.json())
       .then((responseJson) => {
         this.setState({
           isLoading: false,
-          dataSource: responseJson
+          dataSource: responseJson,
+          refreshing: false
         }, function () {
           // In this block you can do something with new state.
         });
@@ -93,30 +102,35 @@ export default class App extends Component {
     }
 
     return (
-      <View style={styles.MainContainer}>
+      <ScrollView style={styles.MainContainer} refreshControl={
+        <RefreshControl
+          refreshing={this.state.refreshing}
+          onRefresh={this._onRefresh}
+        />
+      }>
         <FlatList
           data={this.state.dataSource}
           ItemSeparatorComponent={this.FlatListItemSeparator}
           renderItem={({ item }) =>
-            <View style={{ flex: 1, flexDirection: 'row' }}>
-              <Image onPress={this.GetItem.bind(this, item.url)} source={{ uri: item.img }} style={styles.imageView} />
-              <Text onPress={this.GetItem.bind(this, item.url)} style={styles.textView} >
+            <TouchableOpacity style={{ flex: 1, flexDirection: 'row' }} onPress={this.GetItem.bind(this, item.url)}>
+              <Image source={{ uri: item.img }} style={styles.imageView} />
+              <Text style={styles.textView} >
                 {item.title}{"\n"}
                 {item.address}{"\n"}
                 {moment(item.date).format('lll')}
               </Text>
-            </View>
+            </TouchableOpacity>
           }
           keyExtractor={(item, index) => index.toString()}
         />
-      </View>
+      </ScrollView>
     );
   }
 }
 
 const styles = StyleSheet.create({
   MainContainer: {
-    justifyContent: 'center',
+    // justifyContent: 'center',
     flex: 1,
     margin: 5,
     marginTop: (Platform.OS === 'ios') ? 20 : 0,
